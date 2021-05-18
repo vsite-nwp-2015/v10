@@ -7,6 +7,7 @@
 #include "Set.h"
 #include "Doc.h"
 #include "RecView.h"
+#include <tchar.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -34,6 +35,9 @@ END_MESSAGE_MAP()
 RecView::RecView()
 	: CRecordView(RecView::IDD)
 {
+	CString section(_T("Print"));
+	fontSize = AfxGetApp()->GetProfileInt(section, _T("FontSize"), 16);
+	fontName = AfxGetApp()->GetProfileString(section, _T("FontName"), _T("Arial"));
 }
 
 RecView::~RecView()
@@ -45,6 +49,9 @@ void RecView::DoDataExchange(CDataExchange* pDX)
 	CRecordView::DoDataExchange(pDX);
 	//{{AFX_DATA_MAP(RecView)
 	//}}AFX_DATA_MAP
+	DDX_FieldText(pDX, IDC_EDIT1, m_pSet->m_id, m_pSet);
+	DDX_FieldText(pDX, IDC_EDIT2, m_pSet->m_name, m_pSet);
+	DDX_FieldCheck(pDX, IDC_CHECK1, m_pSet->m_manager, m_pSet);
 }
 
 BOOL RecView::PreCreateWindow(CREATESTRUCT& cs)
@@ -110,3 +117,36 @@ CRecordset* RecView::OnGetRecordset()
 /////////////////////////////////////////////////////////////////////////////
 // RecView message handlers
 
+
+
+void RecView::OnPrint(CDC* pDC, CPrintInfo* pInfo)
+{
+	CFont font,*old_font;
+	LOGFONT lf = { 0 };
+	lf.lfHeight = -MulDiv(fontSize, pDC->GetDeviceCaps(LOGPIXELSY), 72);
+	_tcscpy_s(lf.lfFaceName, fontName);
+	font.CreateFontIndirect(&lf);
+	old_font =  pDC->SelectObject(&font);
+	Set rs;
+	rs.Open();
+	CSize cs = pDC->GetTextExtent("A");
+	int x = pDC->GetDeviceCaps(LOGPIXELSX);
+	int y = 0;
+	pDC->TextOut(0, y, "id");
+	pDC->TextOut(x, y, "name");
+	pDC->TextOut(4*x, y, "manager");
+	y += cs.cy;
+	pDC->MoveTo(0, y);
+	pDC->LineTo(5*x,y);
+	y += cs.cy;
+	while (!rs.IsEOF()) {
+		CString id_str; id_str.Format("%d", rs.m_id);
+		pDC->TextOut(0, y, id_str);
+		pDC->TextOut(x, y, rs.m_name);
+		pDC->TextOut(4 * x, y, rs.m_manager? "X" : "");
+		y+=cs.cy;
+		rs.MoveNext();
+	}
+	pDC->SelectObject(old_font);
+	font.DeleteObject();
+}
